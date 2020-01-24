@@ -26,39 +26,39 @@
 #include "make_dir.h"
 #include "get_current_time.h"
 #include "get_platform.h"
+#include "console_colors.h"
+
 
 
 // ----------------------------------------------------------------------------------------
 
-//inline std::ostream& red(std::ostream& stream)
-//{
-//    if (_internal::is_colorized(stream))
-//    {
-//#if defined(TERMCOLOR_OS_MACOS) || defined(TERMCOLOR_OS_LINUX)
-//        stream << "\033[31m";
-//#elif defined(TERMCOLOR_OS_WINDOWS)
-//        _internal::win_change_attributes(stream,
-//            FOREGROUND_RED
-//        );
-////#endif
-//    }
-//    return stream;
-//}
+//const std::string red("\x1b[0;31m");
 
-const std::string red("\033[0;31m");
-const std::string reset("\033[0m");
+void init(std::string &user_dir)
+{
+    int32_t status = make_dir(user_dir, ".todo");
+    if (status < 0)
+        std::cout << "Error creating .todo folder: " << status << std::endl;
+}
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
 
-    std::ofstream todo_stream, done_stream;
+    std::fstream todo_stream, done_stream;
 
     std::string user_dir;
 
     // get the user root directory where the files will be located
 #if defined(_WIN32) | defined(__WIN32__) | defined(__WIN32) | defined(_WIN64) | defined(__WIN64)
     user_dir = path_check(get_env_variable("USERPROFILE"));
+
+    HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+    unsigned long mode = 0;
+    GetConsoleMode(console_handle, &mode);
+    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;   
+    SetConsoleMode(console_handle, mode);
+
 #else defined(__linux__)
     user_dir = path_check(get_env_variable("HOME"));
 #endif
@@ -66,30 +66,26 @@ int main(int argc, char** argv)
     const std::string todo_root = user_dir + ".todo";
     const std::string todo_file = todo_root + "/todo.txt";
     const std::string done_file = todo_root + "/done.txt";
+    const std::string report_file = todo_root + "/report.txt";
 
     // check for the root .todo directory
-    bool todo_exists = existence_check(todo_root);
+    if (!existence_check(todo_root))
+        init(user_dir);
 
-    std::cout << user_dir << std::endl;
+    todo_stream.open(todo_file, (ios::in | ios::out | ios::app));
+    done_stream.open(done_file, (ios::in | ios::out | ios::app));
 
-    std::cout << red << "test" << std::endl;
-
-    CONSOLE_SCREEN_BUFFER_INFO p;
-    HANDLE consolehwnd = GetStdHandle(STD_OUTPUT_HANDLE);
-    GetConsoleScreenBufferInfo(consolehwnd, &p);
-
-
-    cout << "this text is not colorized\n";
-    SetConsoleTextAttribute(consolehwnd, FOREGROUND_RED);
-    cout << "this text shows as red\n";
-    SetConsoleTextAttribute(consolehwnd, FOREGROUND_BLUE);
-    cout << "this text shows as blue\n";
-
-    SetConsoleTextAttribute(consolehwnd, p.wAttributes);
-    cout << "this text shows as blue\n";
+    // todo format
+    // index, add date, due date, task
 
 
 
+    //std::cout << color(blue, black) << "red test" << reset << std::endl;
+    //std::cout << "test 2" << std::endl;
+    //std::cout << bright_color(blue, black) << "red test" << reset << std::endl;
+
+    todo_stream.close();
+    done_stream.close();
 
     std::cin.ignore();
 
