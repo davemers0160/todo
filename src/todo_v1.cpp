@@ -9,6 +9,7 @@
 // C/C++ includes
 #include <cmath>
 #include <cstdint>
+#include <ctime>
 //#include <cstdio>
 //#include <cstdlib>
 #include <iostream>
@@ -27,6 +28,76 @@
 #include "get_current_time.h"
 #include "get_platform.h"
 #include "console_colors.h"
+
+class todo_task
+{
+public:
+
+    struct tm task_start, task_due;
+
+    uint32_t priority;
+    uint64_t index;
+
+    std::string task_description;
+
+    todo_task() = default;
+
+    todo_task(uint32_t p_, uint64_t i_, std::string td_) : priority(p_), index(i_), task_description(td_)
+    {
+        time_t rawtime;
+        time(&rawtime);
+        task_start = *localtime(&rawtime);
+
+        // add two weeks to the task start date
+        rawtime += 1209600;
+        task_due = *localtime(&rawtime);
+    }
+
+    todo_task(uint32_t p_, uint64_t i_, std::string td_, struct tm te_) : priority(p_), index(i_), task_description(td_), task_due(te_)
+    {
+        time_t rawtime;
+        time(&rawtime);
+        task_start = *localtime(&rawtime);
+    }
+
+    // ----------------------------------------------------------------------------------------
+
+    void print_task(void)
+    {
+        std::string c;
+        time_t now = time(0);
+
+        if (mktime(&task_due) < now)
+            c = red;
+        else
+        {
+            if (priority == 0)
+                c = red;
+            else if (priority == 1)
+                c = yellow;
+            else
+                c = green;
+        }
+
+        std::cout << def_color(c) << *this << std::endl;
+    }
+
+    inline friend std::ostream& operator<< (
+        std::ostream& out,
+        const todo_task &item
+        )
+    {
+        out << item.priority << ", " << item.index << ", ";
+        out << (1900 + item.task_start.tm_year) << item.task_start.tm_mon << item.task_start.tm_mday << ", ";
+        out << (1900 + item.task_due.tm_year) << item.task_due.tm_mon << item.task_due.tm_mday << ", ";
+        out << item.task_description;
+        return out;
+    }
+
+};  // end of todo_task
+
+
+
 
 
 
@@ -76,9 +147,20 @@ int main(int argc, char** argv)
     done_stream.open(done_file, (ios::in | ios::out | ios::app));
 
     // todo format
-    // index, add date, due date, task
+    // priority index, add date, due date, task
+    std::string sdate,stime;
+    get_current_time(sdate, stime);
 
+    todo_task todo;
+    auto t = time(NULL);
+    todo_task todo2(0, 0, "test of the todo task class", *localtime(&t));
 
+    std::cout << todo << std::endl;
+    std::cout << todo2 << std::endl;
+
+    todo2.print_task();
+
+    std::cout << sdate << "_" << stime << std::endl;
 
     //std::cout << color(blue, black) << "red test" << reset << std::endl;
     //std::cout << "test 2" << std::endl;
