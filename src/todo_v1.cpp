@@ -19,91 +19,69 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <list>
+
 //#include <sys/stat.h>
 
 // custom includes
+#include "todo.h"
 #include "num2string.h"
 #include "file_parser.h"
 #include "make_dir.h"
 #include "get_current_time.h"
 #include "get_platform.h"
-#include "console_colors.h"
 
-class todo_task
-{
-public:
+/*
 
-    struct tm task_start, task_due;
+options:
 
-    uint32_t priority;
-    uint64_t index;
+--list
 
-    std::string task_description;
+--add <priority> <due date> <task description>
 
-    todo_task() = default;
-
-    todo_task(uint32_t p_, uint64_t i_, std::string td_) : priority(p_), index(i_), task_description(td_)
-    {
-        time_t rawtime;
-        time(&rawtime);
-        task_start = *localtime(&rawtime);
-
-        // add two weeks to the task start date
-        rawtime += 1209600;
-        task_due = *localtime(&rawtime);
-    }
-
-    todo_task(uint32_t p_, uint64_t i_, std::string td_, struct tm te_) : priority(p_), index(i_), task_description(td_), task_due(te_)
-    {
-        time_t rawtime;
-        time(&rawtime);
-        task_start = *localtime(&rawtime);
-    }
-
-    // ----------------------------------------------------------------------------------------
-
-    void print_task(void)
-    {
-        std::string c;
-        time_t now = time(0);
-
-        if (mktime(&task_due) < now)
-            c = red;
-        else
-        {
-            if (priority == 0)
-                c = red;
-            else if (priority == 1)
-                c = yellow;
-            else
-                c = green;
-        }
-
-        std::cout << def_color(c) << *this << std::endl;
-    }
-
-    inline friend std::ostream& operator<< (
-        std::ostream& out,
-        const todo_task &item
-        )
-    {
-        out << item.priority << ", " << item.index << ", ";
-        out << (1900 + item.task_start.tm_year) << item.task_start.tm_mon << item.task_start.tm_mday << ", ";
-        out << (1900 + item.task_due.tm_year) << item.task_due.tm_mon << item.task_due.tm_mday << ", ";
-        out << item.task_description;
-        return out;
-    }
-
-};  // end of todo_task
+--done <index>
 
 
-
-
-
+*/
 
 // ----------------------------------------------------------------------------------------
 
-//const std::string red("\x1b[0;31m");
+void parse_inputs(int argc, char** argv, uint8_t &cmd, todo_task &task)
+{
+    uint32_t idx;
+
+    try {
+        for (idx = 1; idx < argc; ++idx)
+        {
+            std::string arg(argv[idx]);
+            if ((arg.compare("--add") == 0) && (argc >= 5))
+            {
+                cmd = 0;
+
+                task = todo_task((uint32_t)std::stol(argv[idx + 1]), convert_date(argv[idx + 2]), (std::string)(argv[idx + 3]));
+                //throw std::runtime_error("--add option requires");
+            }
+            else if ((arg.compare("--list") == 0))
+            {
+                cmd = 1;
+            }
+            else if ((arg.compare("--done") == 0) && (argc >=2))
+            {
+                cmd = 2;
+                task.set_index((uint64_t)std::stol(argv[idx + 1]));
+            }
+
+        }
+    }
+    catch (std::exception &e)
+    {
+        std::cout << e.what() << std::endl;
+        return;
+    }
+    
+}   // end of parse_inputs
+
+// ----------------------------------------------------------------------------------------
 
 void init(std::string &user_dir)
 {
@@ -115,8 +93,11 @@ void init(std::string &user_dir)
 // ----------------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
+    uint64_t idx;
 
     std::fstream todo_stream, done_stream;
+    std::list <todo_task> todo_list, done_list;
+    todo_task tmp_todo;
 
     std::string user_dir;
 
@@ -143,32 +124,40 @@ int main(int argc, char** argv)
     if (!existence_check(todo_root))
         init(user_dir);
 
-    todo_stream.open(todo_file, (ios::in | ios::out | ios::app));
-    done_stream.open(done_file, (ios::in | ios::out | ios::app));
+    uint8_t cmd = 0;
+    parse_inputs(argc, argv, cmd, tmp_todo);
 
-    // todo format
-    // priority index, add date, due date, task
-    std::string sdate,stime;
-    get_current_time(sdate, stime);
+    switch (cmd)
+    {
+    case 0:
+        read_todo_file(todo_file, todo_list);
+        tmp_todo.set_index(get_max_index(todo_list));
+        todo_list.push_back(tmp_todo);
+        todo_list.sort();
+        write_todo_file(todo_file, todo_list);
+        break;
 
-    todo_task todo;
-    auto t = time(NULL);
-    todo_task todo2(0, 0, "test of the todo task class", *localtime(&t));
+    case 1:
+        read_todo_file(todo_file, todo_list);
+        todo_list.sort();
 
-    std::cout << todo << std::endl;
-    std::cout << todo2 << std::endl;
+        for (auto& td : todo_list)
+            td.print_task();
 
-    todo2.print_task();
+        break;
 
-    std::cout << sdate << "_" << stime << std::endl;
+    case 2:
 
-    //std::cout << color(blue, black) << "red test" << reset << std::endl;
-    //std::cout << "test 2" << std::endl;
-    //std::cout << bright_color(blue, black) << "red test" << reset << std::endl;
+        break;
 
-    todo_stream.close();
-    done_stream.close();
+    default:
+        break;
+    }
 
-    std::cin.ignore();
+
+
+
+    //std::cin.ignore();
+    int bp = 0;
 
 }   // end of main
